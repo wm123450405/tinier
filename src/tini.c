@@ -662,27 +662,28 @@ int main(int argc, char *argv[]) {
 	/* Are we going to reap zombies properly? If not, warn. */
 	reaper_check();
 
-	/* Go on */
-	int spawn_ret = spawn(&child_sigconf, *child_args_ptr, &child_pid);
-	if (spawn_ret) {
-		return spawn_ret;
-	}
-	free(child_args_ptr);
-
-	while (1) {
-		/* Wait for one signal, and forward it */
-		if (wait_and_forward_signal(&parent_sigset, child_pid)) {
-			return 1;
+	do {
+		/* Go on */
+		int spawn_ret = spawn(&child_sigconf, *child_args_ptr, &child_pid);
+		if (spawn_ret) {
+			return spawn_ret;
 		}
-
-		/* Now, reap zombies */
-		if (reap_zombies(child_pid, &child_exitcode)) {
-			return 1;
+	
+		while (1) {
+			/* Wait for one signal, and forward it */
+			if (wait_and_forward_signal(&parent_sigset, child_pid)) {
+				return 1;
+			}
+	
+			/* Now, reap zombies */
+			if (reap_zombies(child_pid, &child_exitcode)) {
+				return 1;
+			}
+	
+			if (child_exitcode != -1) {
+				PRINT_TRACE("Exiting: child has exited");
+				return child_exitcode;
+			}
 		}
-
-		if (child_exitcode != -1) {
-			PRINT_TRACE("Exiting: child has exited");
-			return child_exitcode;
-		}
-	}
+	} while (child_exitcode);
 }
