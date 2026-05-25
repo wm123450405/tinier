@@ -27,11 +27,11 @@
 #define PRINT_TRACE(...)    if (verbosity > 3) { fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); }
 #define DEFAULT_VERBOSITY 0
 #else
-#define PRINT_FATAL(...)                         fprintf(stderr, "[FATAL tini (%i)] ", getpid()); fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n");
-#define PRINT_WARNING(...)  if (verbosity > 0) { fprintf(stderr, "[WARN  tini (%i)] ", getpid()); fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n"); }
-#define PRINT_INFO(...)     if (verbosity > 1) { fprintf(stdout, "[INFO  tini (%i)] ", getpid()); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); }
-#define PRINT_DEBUG(...)    if (verbosity > 2) { fprintf(stdout, "[DEBUG tini (%i)] ", getpid()); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); }
-#define PRINT_TRACE(...)    if (verbosity > 3) { fprintf(stdout, "[TRACE tini (%i)] ", getpid()); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); }
+#define PRINT_FATAL(...)                         fprintf(stderr, "[FATAL tinier (%i)] ", getpid()); fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n");
+#define PRINT_WARNING(...)  if (verbosity > 0) { fprintf(stderr, "[WARN  tinier (%i)] ", getpid()); fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n"); }
+#define PRINT_INFO(...)     if (verbosity > 1) { fprintf(stdout, "[INFO  tinier (%i)] ", getpid()); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); }
+#define PRINT_DEBUG(...)    if (verbosity > 2) { fprintf(stdout, "[DEBUG tinier (%i)] ", getpid()); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); }
+#define PRINT_TRACE(...)    if (verbosity > 3) { fprintf(stdout, "[TRACE tinier (%i)] ", getpid()); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); }
 #define DEFAULT_VERBOSITY 1
 #endif
 
@@ -663,13 +663,17 @@ int main(int argc, char *argv[]) {
 	reaper_check();
 
 	do {
+		PRINT_INFO("Starting...")
 		/* Go on */
 		int spawn_ret = spawn(&child_sigconf, *child_args_ptr, &child_pid);
 		if (spawn_ret) {
+			PRINT_INFO("Failed to spawn child process %d", spawn_ret)
 			return spawn_ret;
 		}
 	
 		while (1) {
+			child_exitcode = -1;
+
 			/* Wait for one signal, and forward it */
 			if (wait_and_forward_signal(&parent_sigset, child_pid)) {
 				return 1;
@@ -677,13 +681,17 @@ int main(int argc, char *argv[]) {
 	
 			/* Now, reap zombies */
 			if (reap_zombies(child_pid, &child_exitcode)) {
-				return 1;
+				if (child_exitcode == -1) {
+					child_exitcode = 1;
+				}
 			}
 	
 			if (child_exitcode != -1) {
-				PRINT_TRACE("Exiting: child has exited");
-				return child_exitcode;
+				PRINT_INFO("Exiting: child has exited %d", child_exitcode);
+				break;
 			}
 		}
 	} while (child_exitcode);
+
+	return 0;
 }
